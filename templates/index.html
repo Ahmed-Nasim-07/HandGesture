@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Assistant - Smooth Engine Build</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { color: #1a73e8; margin-bottom: 5px; }
+        p.subtitle { color: #5f6368; margin-top: 0; margin-bottom: 20px; }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1100px;
+            width: 100%;
+        }
+        .box {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            transform: scaleX(-1);
+            background: #202124;
+        }
+        .display-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+        }
+        .draft-zone {
+            font-size: 26px;
+            font-weight: bold;
+            color: #e67e22;
+            background: #fdf5e6;
+            border: 2px dashed #e67e22;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            width: 85%;
+            min-height: 38px;
+        }
+        .sentence-box {
+            font-size: 34px;
+            font-weight: 800;
+            color: #1e8e3e;
+            background: #e6f4ea;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-wrap: break-word;
+        }
+        .vocab-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            text-align: left;
+            font-size: 13px;
+        }
+        .vocab-item { padding: 8px 12px; border-radius: 6px; font-weight: bold; }
+        .vocab-word { background: #e8f0fe; color: #1a73e8; }
+        .vocab-ctrl { font-weight: 800; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <h1>Gesture Communication Assistant</h1>
+    <p class="subtitle">Temporal Smoothing Stability Protocol (Solo Build)</p>
+
+    <div class="container">
+        <div class="box">
+            <h3>Patient Webcam Feed</h3>
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="capture-canvas" style="display:none;"></canvas>
+            
+            <h4>System Rules Guide</h4>
+            <div class="vocab-grid">
+                <div class="vocab-item vocab-word">I / ME (1 Hand L-Shape)</div>
+                <div class="vocab-item vocab-word">NEED / WANT (1 Hand Claw)</div>
+                <div class="vocab-item vocab-word">HELP (1 Hand Index Up)</div>
+                <div class="vocab-item vocab-word">EMERGENCY (1 Hand Open Palm)</div>
+                
+                <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#e6f4ea; color:#1e8e3e;">
+                    ☝️☝️ DOUBLE L-SHAPE (Hold 1 sec): Lock Word In
+                </div>
+                <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#fce8e6; color:#c5221f;">
+                    ✌️✌️ DOUBLE PEACE SIGN (Hold 1 sec): Clear Everything
+                </div>
+                <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#e8f0fe; color:#1a73e8;">
+                    🖐️🖐️ DOUBLE OPEN PALM (Hold 1 sec): Speak Sentence + Reset
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <h3>Hospital Staff Dashboard</h3>
+            <div class="display-panel">
+                <div style="font-size: 14px; color:#70757a; margin-bottom: 5px; font-weight: bold;">Currently Drafting:</div>
+                <div class="draft-zone" id="draft-output">None</div>
+
+                <div style="font-size: 14px; color:#70757a; margin-bottom: 5px; font-weight: bold;">Locked Patient Sentence:</div>
+                <div class="sentence-box" id="sentence-output">...</div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-player" autoplay></audio>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('capture-canvas');
+        const context = canvas.getContext('2d');
+        const draftDisplay = document.getElementById('draft-output');
+        const sentenceDisplay = document.getElementById('sentence-output');
+        const audioPlayer = document.getElementById('audio-player');
+
+        let sentenceWords = [];
+        let draftedWord = "None";
+        let lastLoggedGesture = "None";
+        let isAudioPlaying = false;
+
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+            .then(stream => {
+                video.srcObject = stream;
+                setInterval(sendFrameToBackend, 150); // Kept fast (150ms) for high sampling resolution
+            })
+            .catch(err => console.error("Camera access error:", err));
+
+        function sendFrameToBackend() {
+            if (isAudioPlaying) return;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+
+            fetch('/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataUrl })
+            })
+            .then(res => res.json())
+            .then(data => {
+                let recognized = data.gesture;
+
+                if (recognized !== "None") {
+                    // 1. DOUBLE OPEN PALM
+                    if (recognized === "SPEAK_ALL") {
+                        if (sentenceWords.length > 0) {
+                            triggerTextToSpeech(sentenceWords.join(" "));
+                        }
+                        draftedWord = "None";
+                        draftDisplay.innerText = "None";
+                    }
+                    
+                    // 2. DOUBLE L-SHAPE
+                    else if (recognized === "CONFIRM_WORD") {
+                        if (draftedWord !== "None") {
+                            sentenceWords.push(draftedWord);
+                            sentenceDisplay.innerText = sentenceWords.join(" ");
+                            draftedWord = "None";
+                            draftDisplay.innerText = "None";
+                        }
+                    }
+                    
+                    // 3. DOUBLE PEACE SIGN
+                    else if (recognized === "CLEAR_ALL") {
+                        sentenceWords = [];
+                        sentenceDisplay.innerText = "...";
+                        draftedWord = "None";
+                        draftDisplay.innerText = "None";
+                    }
+                    
+                    // Fallback delete
+                    else if (recognized === "DELETE_LAST") {
+                        sentenceWords.pop();
+                        sentenceDisplay.innerText = sentenceWords.length > 0 ? sentenceWords.join(" ") : "...";
+                        draftedWord = "None";
+                        draftDisplay.innerText = "None";
+                    }
+                    
+                    // 4. Vocabulary Draft Previewing
+                    else {
+                        let mapDictionary = {
+                            "I": "I", "HELP": "help", "EMERGENCY": "emergency", "NEED": "need"
+                        };
+                        if (mapDictionary[recognized]) {
+                            draftedWord = mapDictionary[recognized];
+                            draftDisplay.innerText = draftedWord;
+                        }
+                    }
+                }
+            });
+        }
+
+        function triggerTextToSpeech(textLine) {
+            isAudioPlaying = true;
+            draftDisplay.innerText = "🔊 SPEAKING SENTENCE...";
+            
+            audioPlayer.src = `/speak?text=${encodeURIComponent(textLine)}&t=${new Date().getTime()}`;
+            audioPlayer.play();
+            
+            audioPlayer.onended = () => {
+                isAudioPlaying = false;
+                sentenceWords = [];
+                sentenceDisplay.innerText = "...";
+                draftDisplay.innerText = "None";
+            };
+        }
+    </script>
+</body>
+</html>
