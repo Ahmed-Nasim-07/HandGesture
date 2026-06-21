@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gesture Assistant - Smooth Engine Build</title>
+    <title>Gesture Assistant</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -13,9 +13,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            color: #000000 !important;
         }
-        h1 { color: #1a73e8; margin-bottom: 5px; }
-        p.subtitle { color: #5f6368; margin-top: 0; margin-bottom: 20px; }
+        h1 { color: #000000; margin-bottom: 25px; } 
         .container {
             display: flex;
             gap: 20px;
@@ -29,7 +29,9 @@
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             text-align: center;
+            color: #000000 !important;
         }
+        h3, h4 { color: #000000 !important; }
         video {
             width: 100%;
             border-radius: 8px;
@@ -85,7 +87,6 @@
 <body>
 
     <h1>Gesture Communication Assistant</h1>
-    <p class="subtitle">Temporal Smoothing Stability Protocol (Solo Build)</p>
 
     <div class="container">
         <div class="box">
@@ -101,13 +102,13 @@
                 <div class="vocab-item vocab-word">EMERGENCY (1 Hand Open Palm)</div>
                 
                 <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#e6f4ea; color:#1e8e3e;">
-                    ☝️☝️ DOUBLE L-SHAPE (Hold 1 sec): Lock Word In
+                    DOUBLE L-SHAPE (Hold 1 sec): Lock Word In
                 </div>
                 <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#fce8e6; color:#c5221f;">
-                    ✌️✌️ DOUBLE PEACE SIGN (Hold 1 sec): Clear Everything
+                    DOUBLE PEACE SIGN (Hold 1 sec): Clear Everything
                 </div>
                 <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#e8f0fe; color:#1a73e8;">
-                    🖐️🖐️ DOUBLE OPEN PALM (Hold 1 sec): Speak Sentence + Reset
+                    DOUBLE OPEN PALM (Hold 1 sec): Speak Sentence + Reset
                 </div>
             </div>
         </div>
@@ -115,11 +116,15 @@
         <div class="box">
             <h3>Hospital Staff Dashboard</h3>
             <div class="display-panel">
-                <div style="font-size: 14px; color:#70757a; margin-bottom: 5px; font-weight: bold;">Currently Drafting:</div>
+                <div style="font-size: 14px; color:#000000; margin-bottom: 5px; font-weight: bold;">Currently Drafting:</div>
                 <div class="draft-zone" id="draft-output">None</div>
 
-                <div style="font-size: 14px; color:#70757a; margin-bottom: 5px; font-weight: bold;">Locked Patient Sentence:</div>
+                <div style="font-size: 14px; color:#000000; margin-bottom: 5px; font-weight: bold;">Locked Patient Sentence:</div>
                 <div class="sentence-box" id="sentence-output">...</div>
+                
+                <button onclick="undoLastWord()" style="margin-top: 15px; padding: 10px 20px; background-color: #f4b400; color: black; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    Undo Last Word
+                </button>
             </div>
         </div>
     </div>
@@ -142,7 +147,7 @@
         navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
             .then(stream => {
                 video.srcObject = stream;
-                setInterval(sendFrameToBackend, 150); // Kept fast (150ms) for high sampling resolution
+                setInterval(sendFrameToBackend, 150);
             })
             .catch(err => console.error("Camera access error:", err));
 
@@ -164,7 +169,6 @@
                 let recognized = data.gesture;
 
                 if (recognized !== "None") {
-                    // 1. DOUBLE OPEN PALM
                     if (recognized === "SPEAK_ALL") {
                         if (sentenceWords.length > 0) {
                             triggerTextToSpeech(sentenceWords.join(" "));
@@ -172,8 +176,6 @@
                         draftedWord = "None";
                         draftDisplay.innerText = "None";
                     }
-                    
-                    // 2. DOUBLE L-SHAPE
                     else if (recognized === "CONFIRM_WORD") {
                         if (draftedWord !== "None") {
                             sentenceWords.push(draftedWord);
@@ -182,24 +184,18 @@
                             draftDisplay.innerText = "None";
                         }
                     }
-                    
-                    // 3. DOUBLE PEACE SIGN
                     else if (recognized === "CLEAR_ALL") {
                         sentenceWords = [];
                         sentenceDisplay.innerText = "...";
                         draftedWord = "None";
                         draftDisplay.innerText = "None";
                     }
-                    
-                    // Fallback delete
                     else if (recognized === "DELETE_LAST") {
                         sentenceWords.pop();
                         sentenceDisplay.innerText = sentenceWords.length > 0 ? sentenceWords.join(" ") : "...";
                         draftedWord = "None";
                         draftDisplay.innerText = "None";
                     }
-                    
-                    // 4. Vocabulary Draft Previewing
                     else {
                         let mapDictionary = {
                             "I": "I", "HELP": "help", "EMERGENCY": "emergency", "NEED": "need"
@@ -215,7 +211,7 @@
 
         function triggerTextToSpeech(textLine) {
             isAudioPlaying = true;
-            draftDisplay.innerText = "🔊 SPEAKING SENTENCE...";
+            draftDisplay.innerText = "SPEAKING SENTENCE...";
             
             audioPlayer.src = `/speak?text=${encodeURIComponent(textLine)}&t=${new Date().getTime()}`;
             audioPlayer.play();
@@ -226,6 +222,17 @@
                 sentenceDisplay.innerText = "...";
                 draftDisplay.innerText = "None";
             };
+        }
+
+        function undoLastWord() {
+            if (sentenceWords.length > 0) {
+                sentenceWords.pop();
+                if (sentenceWords.length > 0) {
+                    sentenceDisplay.innerText = sentenceWords.join(" ");
+                } else {
+                    sentenceDisplay.innerText = "...";
+                }
+            }
         }
     </script>
 </body>
