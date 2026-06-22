@@ -100,6 +100,12 @@
                 <div class="vocab-item vocab-word">NEED / WANT (1 Hand Claw)</div>
                 <div class="vocab-item vocab-word">HELP (1 Hand Index Up)</div>
                 <div class="vocab-item vocab-word">EMERGENCY (1 Hand Open Palm)</div>
+                <div class="vocab-item vocab-word">WATER (Index, Middle, Ring UP)</div>
+                <div class="vocab-item vocab-word">PAIN (Index and Pinky UP)</div>
+                <div class="vocab-item vocab-word">DOCTOR (All Down, Thumb UP)</div>
+                <div class="vocab-item vocab-word">TOILET (Pinky finger UP)</div>
+                <div class="vocab-item vocab-word">RECEPTION (Ring finger UP)</div>
+                <div class="vocab-item vocab-word">DELETE LAST (Thumbs DOWN - 3s Delay)</div>
                 
                 <div class="vocab-item vocab-ctrl" style="grid-column: span 2; background:#e6f4ea; color:#1e8e3e;">
                     DOUBLE L-SHAPE (Hold 1 sec): Lock Word In
@@ -197,8 +203,17 @@
                         draftDisplay.innerText = "None";
                     }
                     else {
+                        // Added the new backend string keys mapped to lowercase TTS equivalents
                         let mapDictionary = {
-                            "I": "I", "HELP": "help", "EMERGENCY": "emergency", "NEED": "need"
+                            "I": "I", 
+                            "HELP": "help", 
+                            "EMERGENCY": "emergency", 
+                            "NEED": "need",
+                            "WATER": "water",
+                            "PAIN": "pain",
+                            "DOCTOR": "doctor",
+                            "TOILET": "toilet",
+                            "RECEPTION": "reception"
                         };
                         if (mapDictionary[recognized]) {
                             draftedWord = mapDictionary[recognized];

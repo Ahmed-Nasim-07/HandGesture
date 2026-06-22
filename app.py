@@ -4,6 +4,7 @@ import mediapipe as mp
 import numpy as np
 import base64
 import os
+import time  # <--- 1. IMPORT TIME MODULE
 from gtts import gTTS
 
 app = Flask(__name__)
@@ -23,6 +24,7 @@ gesture_counters = {
 }
 FRAME_THRESHOLD = 6  
 cooldown_frames = 0  
+last_delete_time = 0  # <--- 2. INITIALIZE GLOBAL TRACKING VARIABLE
 
 @app.route('/')
 def index():
@@ -30,7 +32,7 @@ def index():
 
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
-    global cooldown_frames, gesture_counters
+    global cooldown_frames, gesture_counters, last_delete_time  # <--- 3. ADD TO GLOBAL DECLARATIONS
     
     data = request.json
     if not data or 'image' not in data:
@@ -74,16 +76,11 @@ def process_frame():
                 h2_r = hand2.landmark[16].y < hand2.landmark[14].y
                 h2_p = hand2.landmark[20].y < hand2.landmark[18].y
 
-                # 1. DOUBLE OPEN PALM -> SPEAK ALL
                 if h1_i and h1_m and h1_r and h1_p and h2_i and h2_m and h2_r and h2_p:
                     detected_raw = "SPEAK_ALL"
-                
-                # 2. DOUBLE PEACE SIGN -> CLEAR ALL
                 elif (h1_i and h1_m and not h1_r and not h1_p and 
                       h2_i and h2_m and not h2_r and not h2_p):
                     detected_raw = "CLEAR_ALL"
-                    
-                # 3. DOUBLE L-SHAPE -> CONFIRM WORD
                 elif (h1_i and not h1_m and not h1_r and not h1_p and 
                       h2_i and not h2_m and not h2_r and not h2_p):
                     detected_raw = "CONFIRM_WORD"
@@ -94,7 +91,6 @@ def process_frame():
         elif num_hands == 1:
             hand_landmarks = results.multi_hand_landmarks[0]
             
-            # Extract landmarks as vectors for distance calculations
             def get_pt(lm):
                 return np.array([lm.x, lm.y, lm.z])
 
@@ -104,6 +100,9 @@ def process_frame():
             p_ring_tip = get_pt(hand_landmarks.landmark[16])
             
             thumb_tip = hand_landmarks.landmark[4]
+            thumb_ip = hand_landmarks.landmark[3]
+            thumb_mcp = hand_landmarks.landmark[2]
+            
             index_tip = hand_landmarks.landmark[8]
             index_knuckle = hand_landmarks.landmark[6]
             middle_tip = hand_landmarks.landmark[12]
@@ -118,19 +117,18 @@ def process_frame():
             ring_up = ring_tip.y < ring_knuckle.y
             pinky_up = pinky_tip.y < pinky_knuckle.y
 
-            # Calculate tip distances relative to the wrist base
             d_index = np.linalg.norm(p_index_tip - p_wrist)
             d_middle = np.linalg.norm(p_middle_tip - p_wrist)
             d_ring = np.linalg.norm(p_ring_tip - p_wrist)
             
-            # --- NEW HIGH-RELIABILITY "WANT / NEED" CLAW CHECK ---
-            # If fingers are intermediate distance (not fully extended up, not fully closed in a fist)
             if (0.28 < d_index < 0.42) and (0.28 < d_middle < 0.42) and (0.28 < d_ring < 0.42):
                 detected_raw = "NEED"
-
-            # Base Drafting Rules
             elif index_up and middle_up and ring_up and pinky_up:
                 detected_raw = "EMERGENCY"
+            elif index_up and middle_up and ring_up and not pinky_up:
+                detected_raw = "WATER"
+            elif index_up and pinky_up and not middle_up and not ring_up:
+                detected_raw = "PAIN"
             elif pinky_up and not index_up and not middle_up and not ring_up:
                 detected_raw = "TOILET"
             elif ring_up and not index_up and not middle_up and not pinky_up:
@@ -140,11 +138,18 @@ def process_frame():
                     detected_raw = "HELP"
                 else:
                     detected_raw = "I"
-                
-            # Single-Hand Delete Fallback (Thumbs Down)
             elif not index_up and not middle_up and not ring_up and not pinky_up:
-                if thumb_tip.y > thumb_ip.y and thumb_ip.y > thumb_mcp.y:
-                    detected_raw = "DELETE_LAST"
+                if thumb_tip.y < index_knuckle.y:
+                    detected_raw = "DOCTOR"
+                # --- TIME DELAY LOGIC FOR DELETION ---
+                elif thumb_tip.y > thumb_ip.y and thumb_ip.y > thumb_mcp.y:
+                    current_time = time.time()
+                    # Only allow deletion if 3 seconds have passed since the last one
+                    if current_time - last_delete_time >= 3.0:
+                        detected_raw = "DELETE_LAST"
+                        last_delete_time = current_time  # Reset timestamp anchor
+                    else:
+                        detected_raw = "None"
 
     # --- DEBOUNCE EVALUATION SMOOTHER ---
     final_output_gesture = "None"
