@@ -1,6 +1,13 @@
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('capture-canvas');
-const context = canvas.getContext('2d');
+if (!canvas) {
+    console.error("Canvas not found in HTML");
+}
+
+let context = null;
+if (canvas) {
+    context = canvas.getContext('2d');
+}
 const draftDisplay = document.getElementById('draft-output');
 const sentenceDisplay = document.getElementById('sentence-output');
 const audioPlayer = document.getElementById('audio-player');
@@ -9,19 +16,32 @@ let sentenceWords = [];
 let draftedWord = "None";
 let lastLoggedGesture = "None";
 let isAudioPlaying = false;
+let frameInterval = null;
 
-navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-    .then(stream => {
-        video.srcObject = stream;
-        setInterval(sendFrameToBackend, 150);
-    })
-    .catch(err => console.error("Camera access error:", err));
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+    video.srcObject = stream;
+
+    video.onloadedmetadata = () => {
+        video.play();
+
+        setTimeout(() => {
+            frameInterval = setInterval(sendFrameToBackend, 250);
+        }, 1000);
+    };
+})
+.catch(err => {
+    console.error("Camera access error:", err);
+    alert("Camera permission required. Please allow camera access.");
+});
 
 function sendFrameToBackend() {
+    if (!video || !canvas || !context) return;
+    if (video.readyState < 2) return;
     if (isAudioPlaying) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg');
 
