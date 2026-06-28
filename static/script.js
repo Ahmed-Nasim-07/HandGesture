@@ -18,28 +18,48 @@ let lastLoggedGesture = "None";
 let isAudioPlaying = false;
 let frameInterval = null;
 
-navigator.mediaDevices.getUserMedia({ video: true })
-.then(stream => {
-    video.srcObject = stream;
+async function startCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
-    video.onloadedmetadata = () => {
-        video.play();
+        video.srcObject = stream;
 
-        setTimeout(() => {
+        video.onloadedmetadata = () => {
+            if (!video) return;
+            video.play();
+
+            if (frameInterval) {
+                clearInterval(frameInterval);
+            }
+
             frameInterval = setInterval(sendFrameToBackend, 250);
-        }, 1000);
-    };
-})
-.catch(err => {
-    console.error("Camera access error:", err);
-    alert("Camera permission required. Please allow camera access.");
+        };
+
+    } catch (err) {
+        console.error("Camera error:", err);
+    }
+}
+
+startCamera();
+
+window.addEventListener("beforeunload", () => {
+    if (frameInterval) {
+        clearInterval(frameInterval);
+    }
+
+    const stream = video?.srcObject;
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
 });
 
 function sendFrameToBackend() {
     if (!video || !canvas || !context) return;
+    if (!video.srcObject) return;
     if (video.readyState < 2) return;
+    if (video.videoWidth < 50 || video.videoHeight < 50) return;
     if (isAudioPlaying) return;
-
+    console.log("Sending frame...");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
